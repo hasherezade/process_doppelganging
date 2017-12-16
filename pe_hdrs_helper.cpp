@@ -32,18 +32,17 @@ WORD get_pe_architecture(const BYTE *pe_buffer)
 DWORD get_entry_point_rva(const BYTE *pe_buffer)
 {
 	WORD arch = get_pe_architecture(pe_buffer);
-	//update image base in the written content:
 	BYTE* payload_nt_hdr = get_nt_hrds(pe_buffer);
 	if (payload_nt_hdr == NULL) {
 		return 0;
 	}
-	DWORD img_base = 0;
+	DWORD ep_addr = 0;
 	if (arch == IMAGE_FILE_MACHINE_AMD64) {
 		IMAGE_NT_HEADERS64* payload_nt_hdr64 = (IMAGE_NT_HEADERS64*)payload_nt_hdr;
-        img_base = payload_nt_hdr64->OptionalHeader.AddressOfEntryPoint;
+        ep_addr = payload_nt_hdr64->OptionalHeader.AddressOfEntryPoint;
 	} else {
 		IMAGE_NT_HEADERS32* payload_nt_hdr32 = (IMAGE_NT_HEADERS32*)payload_nt_hdr;
-		img_base = static_cast<ULONGLONG>(payload_nt_hdr32->OptionalHeader.AddressOfEntryPoint);
+		ep_addr = static_cast<ULONGLONG>(payload_nt_hdr32->OptionalHeader.AddressOfEntryPoint);
 	}
-	return img_base;
+	return ep_addr;
 }

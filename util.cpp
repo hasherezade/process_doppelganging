@@ -8,34 +8,40 @@ BYTE *buffer_payload(wchar_t *filename, OUT size_t &r_size)
 #ifdef _DEBUG
         std::cerr << "Could not open file!" << std::endl;
 #endif
-        return NULL;
+        return nullptr;
     }
     HANDLE mapping = CreateFileMapping(file, 0, PAGE_READONLY, 0, 0, 0);
     if (!mapping) {
 #ifdef _DEBUG
-        printf("Could not create mapping!");
+        std::cerr << "Could not create mapping!" << std::endl;
 #endif
         CloseHandle(file);
-        return NULL;
+        return nullptr;
     }
     BYTE *dllRawData = (BYTE*) MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0);
-    if (dllRawData == NULL) {
+    if (dllRawData == nullptr) {
 #ifdef _DEBUG
-        printf("Could not map view of file");
+        std::cerr << "Could not map view of file" << std::endl;
 #endif
         CloseHandle(mapping);
         CloseHandle(file);
-        return NULL;
+        return nullptr;
     }
     r_size = GetFileSize(file, 0);
     BYTE* localCopyAddress = (BYTE*) VirtualAlloc(NULL, r_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     if (localCopyAddress == NULL) {
-        printf("Could not allocate memory in the current process\n");
-        return NULL;
+        std::cerr << "Could not allocate memory in the current process" << std::endl;
+        return nullptr;
     }
     memcpy(localCopyAddress, dllRawData, r_size);
     UnmapViewOfFile(dllRawData);
     CloseHandle(mapping);
     CloseHandle(file);
     return localCopyAddress;
+}
+
+void free_buffer(BYTE* buffer, size_t buffer_size)
+{
+    if (buffer == NULL) return;
+    VirtualFree(buffer, buffer_size, MEM_DECOMMIT);
 }

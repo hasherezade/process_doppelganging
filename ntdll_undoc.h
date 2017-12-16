@@ -46,7 +46,6 @@ extern NTSTATUS (NTAPI *NtCreateThreadEx) (
     IN  PVOID AttributeList OPTIONAL
 );
 
-
 // Initialization function:
 
 bool init_ntdll_func();

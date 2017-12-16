@@ -2,14 +2,14 @@
 
 NTSTATUS (NTAPI *NtCreateProcessEx)
 (
-    OUT PHANDLE     ProcessHandle,
+    OUT PHANDLE ProcessHandle,
     IN ACCESS_MASK  DesiredAccess,
-    IN POBJECT_ATTRIBUTES ObjectAttributes  OPTIONAL,
+    IN POBJECT_ATTRIBUTES   ObjectAttributes  OPTIONAL,
     IN HANDLE   ParentProcess,
     IN ULONG    Flags,
-    IN HANDLE SectionHandle     OPTIONAL,
-    IN HANDLE DebugPort     OPTIONAL,
-    IN HANDLE ExceptionPort     OPTIONAL,
+    IN HANDLE   SectionHandle OPTIONAL,
+    IN HANDLE   DebugPort OPTIONAL,
+    IN HANDLE   ExceptionPort OPTIONAL,
     IN BOOLEAN  InJob
 ) = NULL;
 
@@ -52,33 +52,33 @@ bool init_ntdll_func()
         return false;
     }
     NtCreateProcessEx = (NTSTATUS (NTAPI *)(
-     PHANDLE,
-     ACCESS_MASK,
-     POBJECT_ATTRIBUTES,
-     HANDLE,
-     ULONG,
-     HANDLE,
-     HANDLE,
-     HANDLE,
-     BOOLEAN)
-     ) proc;
+        PHANDLE,
+        ACCESS_MASK,
+        POBJECT_ATTRIBUTES,
+        HANDLE,
+        ULONG,
+        HANDLE,
+        HANDLE,
+        HANDLE,
+        BOOLEAN
+    )) proc;
 
     proc = GetProcAddress(lib, "RtlCreateProcessParametersEx");
     if (proc == nullptr) {
         return false;
     }
     RtlCreateProcessParametersEx = (NTSTATUS (NTAPI *)(
-    PRTL_USER_PROCESS_PARAMETERS*, 
-    PUNICODE_STRING,
-    PUNICODE_STRING,
-    PUNICODE_STRING, 
-    PUNICODE_STRING,
-    PVOID, 
-    PUNICODE_STRING, 
-    PUNICODE_STRING, 
-    PUNICODE_STRING, 
-    PUNICODE_STRING, 
-    ULONG 
+        PRTL_USER_PROCESS_PARAMETERS*,
+        PUNICODE_STRING,
+        PUNICODE_STRING,
+        PUNICODE_STRING,
+        PUNICODE_STRING,
+        PVOID,
+        PUNICODE_STRING,
+        PUNICODE_STRING,
+        PUNICODE_STRING,
+        PUNICODE_STRING,
+        ULONG 
     )) proc;
 
     proc = GetProcAddress(lib, "NtCreateThreadEx");
@@ -86,18 +86,17 @@ bool init_ntdll_func()
         return false;
     }
     NtCreateThreadEx = (NTSTATUS (NTAPI *)(
-      PHANDLE , 
-      ACCESS_MASK , 
-      POBJECT_ATTRIBUTES  , 
-      HANDLE ,
-      PVOID ,
-      PVOID  ,
-      ULONG ,
-      ULONG_PTR , 
-      SIZE_T  ,
-      SIZE_T  , 
+      PHANDLE, 
+      ACCESS_MASK, 
+      POBJECT_ATTRIBUTES, 
+      HANDLE,
+      PVOID,
+      PVOID,
+      ULONG,
+      ULONG_PTR, 
+      SIZE_T,
+      SIZE_T, 
       PVOID
     )) proc;
-
     return true;
 }
