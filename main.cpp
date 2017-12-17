@@ -75,42 +75,28 @@ LPVOID write_params_into_process(HANDLE hProcess, PVOID buffer, SIZE_T buffer_si
 
 bool setup_process_parameters(HANDLE hProcess, PROCESS_BASIC_INFORMATION &pi, LPWSTR targetPath)
 {
-    LPVOID local_data = VirtualAlloc(NULL, PAGE_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    if (!local_data) {
-        return false;
-    }
-    BYTE* local_data_ptr = (BYTE*)local_data;
-
     //---
-    PUNICODE_STRING uTargetPath = (PUNICODE_STRING)local_data_ptr;
-    RtlInitUnicodeString(uTargetPath , targetPath);
-    local_data_ptr =  local_data_ptr + uTargetPath->MaximumLength + sizeof(PVOID);
+    UNICODE_STRING uTargetPath = { 0 };
+    RtlInitUnicodeString(&uTargetPath , targetPath);
     //---
-    PUNICODE_STRING uCurrentDir = (PUNICODE_STRING)local_data_ptr;
+    UNICODE_STRING uCurrentDir = { 0 };
     wchar_t *currentDir = L"C:\\Windows\\System32";
-    RtlInitUnicodeString(uCurrentDir , currentDir);
-    local_data_ptr =  local_data_ptr + uCurrentDir->MaximumLength + sizeof(PVOID);
+    RtlInitUnicodeString(&uCurrentDir, currentDir);
     //---
-    PUNICODE_STRING uWindowName = (PUNICODE_STRING)local_data_ptr;
+    UNICODE_STRING uWindowName = { 0 };
     wchar_t *windowName = L"Process Doppelganging test!";
-    RtlInitUnicodeString(uWindowName, windowName);
-    local_data_ptr =  local_data_ptr + uWindowName->MaximumLength + sizeof(PVOID);
+    RtlInitUnicodeString(&uWindowName, windowName);
 
-    PVOID mapped1 = write_params_into_process(hProcess, local_data, PAGE_SIZE, PAGE_READWRITE);
-    if (mapped1 == nullptr) {
-        std::cerr << "Mapping local_data into process failed" << std::endl;
-        return false;
-    }
 
     PRTL_USER_PROCESS_PARAMETERS params  = NULL;
     NTSTATUS status = RtlCreateProcessParametersEx(
         &params,
-        (PUNICODE_STRING)uTargetPath,
-        (PUNICODE_STRING) uCurrentDir,
-        (PUNICODE_STRING) uCurrentDir,
-        (PUNICODE_STRING) uTargetPath,
-        local_data,
-        (PUNICODE_STRING) uWindowName,
+        (PUNICODE_STRING) &uTargetPath,
+        (PUNICODE_STRING) &uCurrentDir,
+        (PUNICODE_STRING) &uCurrentDir,
+        (PUNICODE_STRING) &uTargetPath,
+        nullptr,
+        (PUNICODE_STRING) &uWindowName,
         NULL,
         NULL,
         NULL,
