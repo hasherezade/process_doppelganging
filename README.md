@@ -5,4 +5,4 @@ https://www.youtube.com/watch?v=Cch8dvp836w
 <br/>
 <hr/>
 <b>WARNING:</b> <br/>
-This version works for 64 bit only.
+The 32bit version works on 32bit system only. 
