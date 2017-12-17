@@ -156,11 +156,12 @@ bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
         std::cerr << "Failed to create transaction!" << std::endl;
         return false;
     }
-    HANDLE hTransactedFile = CreateFileTransactedW(targetPath,
+    wchar_t* dummy_name = get_file_name(targetPath);
+    HANDLE hTransactedFile = CreateFileTransactedW(dummy_name,
         GENERIC_WRITE | GENERIC_READ,
         0,
         NULL,
-        OPEN_EXISTING,
+        CREATE_ALWAYS,
         FILE_ATTRIBUTE_NORMAL,
         NULL,
         hTransaction,
@@ -275,16 +276,21 @@ bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
 
 int wmain(int argc, wchar_t *argv[])
 {
-    if (argc < 3) {
-        std::cout << "params: <target path> <payload path>\n" << std::endl;
+    if (argc < 2) {
+        std::cout << "params: <payload path> [*target path]\n" << std::endl;
+        std::cout << "* - optional" << std::endl;
         system("pause");
         return 0;
     }
     if (init_ntdll_func() == false) {
         return -1;
     }
-    wchar_t *targetPath = argv[1];
-    wchar_t *payloadPath = argv[2];
+    wchar_t defaultTarget[] = L"C:\\Windows\\yolo.txt";
+    wchar_t *targetPath = defaultTarget;
+    if (argc >= 3) {
+        targetPath = argv[2];
+    }
+    wchar_t *payloadPath = argv[1];
     size_t payloadSize = 0;
 
     BYTE* payladBuf = buffer_payload(payloadPath, payloadSize);
