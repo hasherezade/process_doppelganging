@@ -45,3 +45,14 @@ void free_buffer(BYTE* buffer, size_t buffer_size)
     if (buffer == NULL) return;
     VirtualFree(buffer, buffer_size, MEM_DECOMMIT);
 }
+
+wchar_t* get_file_name(wchar_t *full_path)
+{
+    size_t len = wcslen(full_path);
+    for (size_t i = len - 2; i >= 0; i--) {
+        if (full_path[i] == '\\' || full_path[i] == '/') {
+            return full_path + (i + 1);
+        }
+    }
+    return full_path;
+}

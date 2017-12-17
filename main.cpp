@@ -156,7 +156,8 @@ bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
         std::cerr << "Failed to create transaction!" << std::endl;
         return false;
     }
-    HANDLE hTransactedFile = CreateFileTransactedW(L"test.txt",
+    wchar_t* dummy_name = get_file_name(targetPath);
+    HANDLE hTransactedFile = CreateFileTransactedW(dummy_name,
         GENERIC_WRITE | GENERIC_READ,
         0,
         NULL,
