@@ -79,27 +79,31 @@ bool setup_process_parameters(HANDLE hProcess, PROCESS_BASIC_INFORMATION &pi, LP
     UNICODE_STRING uTargetPath = { 0 };
     RtlInitUnicodeString(&uTargetPath , targetPath);
     //---
+    wchar_t dirPath[MAX_PATH] = { 0 };
+    get_directory(targetPath, dirPath, MAX_PATH);
     UNICODE_STRING uCurrentDir = { 0 };
-    wchar_t *currentDir = L"C:\\Windows\\System32";
-    RtlInitUnicodeString(&uCurrentDir, currentDir);
+    RtlInitUnicodeString(&uCurrentDir, dirPath);
+    //---
+    wchar_t dllDir[] = L"C:\\Windows\\System32";
+    UNICODE_STRING uDllDir = { 0 };
+    RtlInitUnicodeString(&uDllDir, dllDir);
     //---
     UNICODE_STRING uWindowName = { 0 };
     wchar_t *windowName = L"Process Doppelganging test!";
     RtlInitUnicodeString(&uWindowName, windowName);
 
-
-    PRTL_USER_PROCESS_PARAMETERS params  = NULL;
+    PRTL_USER_PROCESS_PARAMETERS params  = nullptr;
     NTSTATUS status = RtlCreateProcessParametersEx(
         &params,
         (PUNICODE_STRING) &uTargetPath,
-        (PUNICODE_STRING) &uCurrentDir,
+        (PUNICODE_STRING) &uDllDir,
         (PUNICODE_STRING) &uCurrentDir,
         (PUNICODE_STRING) &uTargetPath,
         nullptr,
         (PUNICODE_STRING) &uWindowName,
-        NULL,
-        NULL,
-        NULL,
+        nullptr,
+        nullptr,
+        nullptr,
         RTL_USER_PROC_PARAMS_NORMALIZED
     );
     if (status != STATUS_SUCCESS) {
