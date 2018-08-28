@@ -208,18 +208,18 @@ NTSYSAPI
 PVOID
 NTAPI
 RtlImageNtHeader (
-	IN PVOID BaseAddress
-	);
+    IN PVOID BaseAddress
+    );
 
 NTSYSAPI
 PVOID
-NTAPI
+NTAPI 
 RtlImageDirectoryEntryToData (
-	IN PVOID Base,
-	IN BOOLEAN MappedAsImage,
-	IN USHORT DirectoryEntry,
-	OUT PULONG Size
-	);
+    IN PVOID Base,
+    IN BOOLEAN MappedAsImage,
+    IN USHORT DirectoryEntry,
+    OUT PULONG Size
+    );
 
 //-----------------------------------------------------------------------------
 // Unicode string functions
@@ -228,9 +228,9 @@ NTSYSAPI
 NTSTATUS
 NTAPI
 RtlStringFromGUID( 
-	IN REFGUID Guid,
-	OUT PUNICODE_STRING GuidString
-	);
+    IN REFGUID Guid,
+    OUT PUNICODE_STRING GuidString
+    );
 
 
 NTSYSAPI
