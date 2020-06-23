@@ -1,7 +1,7 @@
 os:
   - Visual Studio 2015
   
-platform: x64
+platform:
   - x64
   
 branches:
@@ -9,7 +9,6 @@ branches:
     - master
         
 install:
-  - cinst cmake
   - set PATH=C:\Program Files\CMake\bin;%PATH%
 
 build:
