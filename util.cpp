@@ -68,3 +68,18 @@ wchar_t* get_directory(IN wchar_t *full_path, OUT wchar_t *out_buf, IN const siz
     }
     return out_buf;
 }
+
+bool get_calc_path(LPWSTR lpwOutPath, DWORD szOutPath, bool isPayl32bit)
+{
+    if (isPayl32bit) {
+#ifdef _WIN64
+        ExpandEnvironmentStringsW(L"%SystemRoot%\\SysWoW64\\calc.exe", lpwOutPath, szOutPath);
+#else
+        ExpandEnvironmentStringsW(L"%SystemRoot%\\system32\\calc.exe", lpwOutPath, szOutPath);
+#endif
+    }
+    else {
+        ExpandEnvironmentStringsW(L"%SystemRoot%\\system32\\calc.exe", lpwOutPath, szOutPath);
+    }
+    return true;
+}

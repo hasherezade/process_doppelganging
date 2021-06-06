@@ -117,6 +117,10 @@ bool setup_process_parameters(HANDLE hProcess, PROCESS_BASIC_INFORMATION &pi, LP
     //---
     wchar_t dirPath[MAX_PATH] = { 0 };
     get_directory(targetPath, dirPath, MAX_PATH);
+    //if the directory is empty, set the current one
+    if (wcsnlen(dirPath, MAX_PATH) == 0) {
+        GetCurrentDirectoryW(MAX_PATH, dirPath);
+    }
     UNICODE_STRING uCurrentDir = { 0 };
     RtlInitUnicodeString(&uCurrentDir, dirPath);
     //---

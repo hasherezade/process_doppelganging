@@ -163,7 +163,16 @@ bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
 
 int wmain(int argc, wchar_t *argv[])
 {
+#ifdef _WIN64
+    const bool is32bit = false;
+#else
+    const bool is32bit = true;
+#endif
     if (argc < 2) {
+        std::cout << "Process Doppelganging (";
+        if (is32bit) std::cout << "32bit";
+        else std::cout << "64bit";
+        std::cout << ")\n";
         std::cout << "params: <payload path> [*target path]\n" << std::endl;
         std::cout << "* - optional" << std::endl;
         system("pause");
@@ -172,7 +181,8 @@ int wmain(int argc, wchar_t *argv[])
     if (init_ntdll_func() == false) {
         return -1;
     }
-    wchar_t defaultTarget[] = L"C:\\Windows\\yolo.txt";
+    wchar_t defaultTarget[MAX_PATH] = { 0 };
+    get_calc_path(defaultTarget, MAX_PATH, is32bit);
     wchar_t *targetPath = defaultTarget;
     if (argc >= 3) {
         targetPath = argv[2];
