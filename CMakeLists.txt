@@ -8,6 +8,7 @@ set (srcs
 	util.cpp
 	ntdll_undoc.cpp
 	pe_hdrs_helper.cpp
+	process_env.cpp
 )
 
 set (hdrs
@@ -16,6 +17,7 @@ set (hdrs
 	ntdll_types.h
 	ntddk.h
 	pe_hdrs_helper.h
+	process_env.h
 )
 
 add_executable (proc_doppel ${hdrs} ${srcs})
