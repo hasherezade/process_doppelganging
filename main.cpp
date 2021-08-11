@@ -135,7 +135,7 @@ bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
         std::cerr << "Parameters setup failed" << std::endl;
         return false;
     }
-    std::cout << "[+] Process created! Pid = " << GetProcessId(hProcess) << "\n";
+    std::cout << "[+] Process created! Pid = " << std::dec << GetProcessId(hProcess) << "\n";
 #ifdef _DEBUG
     std::cerr << "EntryPoint at: " << (std::hex) << (ULONGLONG)procEntry << std::endl;
 #endif
@@ -154,7 +154,7 @@ bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
     );
 
     if (status != STATUS_SUCCESS) {
-        std::cerr << "NtCreateThreadEx failed: " << GetLastError() << std::endl;
+        std::cerr << "NtCreateThreadEx failed: " << std::dec << GetLastError() << std::endl;
         return false;
     }
 
