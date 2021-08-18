@@ -63,7 +63,7 @@ HANDLE make_transacted_section(wchar_t* targetPath, BYTE* payladBuf, DWORD paylo
         hTransactedFile
     );
     if (status != STATUS_SUCCESS) {
-        std::cerr << "NtCreateSection failed" << std::endl;
+        std::cerr << "NtCreateSection failed: " << std::hex << status << std::endl;
         return INVALID_HANDLE_VALUE;
     }
     CloseHandle(hTransactedFile);
@@ -117,7 +117,7 @@ bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
         &ReturnLength
     );
     if (status != STATUS_SUCCESS) {
-        std::cerr << "NtQueryInformationProcess failed" << std::endl;
+        std::cerr << "NtQueryInformationProcess failed: " << std::hex << status << std::endl;
         return false;
     }
     PEB peb_copy = { 0 };
@@ -154,7 +154,7 @@ bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
     );
 
     if (status != STATUS_SUCCESS) {
-        std::cerr << "NtCreateThreadEx failed: " << std::dec << GetLastError() << std::endl;
+        std::cerr << "NtCreateThreadEx failed: " << std::hex << status << std::endl;
         return false;
     }
 
